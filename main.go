@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -13,6 +14,7 @@ func main() {
 	rect := image.Rect(0, 0, width, height)
 	img := image.NewRGBA(rect)
 	for j := range height {
+		fmt.Fprintf(os.Stderr, "\rScanlines remaining: %d ", height-j)
 		for i := range width {
 			r := float64(i) / (width - 1)
 			g := float64(j) / (height - 1)
@@ -25,4 +27,5 @@ func main() {
 	if err := png.Encode(os.Stdout, img); err != nil {
 		panic(err)
 	}
+	fmt.Fprintln(os.Stderr, "\rDone.                 ")
 }
