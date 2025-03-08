@@ -60,9 +60,22 @@ func point[T Float](x, y, z T) Point3[T] { return Point3[T]{x, y, z} }
 func rgb[T Float](r, g, b T) RGB[T]      { return RGB[T]{r, g, b} }
 
 func rayColor[T Float](r *Ray[T]) RGB[T] {
+	if hitSphere(r, point[T](0, 0, -1), 0.5) {
+		return rgb[T](1, 0, 0)
+	}
+
 	unitDirection := r.Direction.Normalized()
 	a := 0.5 * (unitDirection.Y() + 1.0)
 	white := rgb[T](1.0, 1.0, 1.0)
 	blue := rgb[T](0.5, 0.7, 1.0)
 	return white.Scaled(1.0 - a).Added(blue.Scaled(a))
+}
+
+func hitSphere[T Float](r *Ray[T], center Point3[T], radius T) bool {
+	oc := center.Subtracted(r.Origin)
+	a := r.Direction.Dot(r.Direction)
+	b := -2.0 * r.Direction.Dot(oc)
+	c := oc.Dot(oc) - radius*radius
+	discriminant := b*b - 4*a*c
+	return discriminant >= 0
 }
