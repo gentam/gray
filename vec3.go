@@ -1,6 +1,7 @@
 package main
 
 import (
+	"image/color"
 	"math"
 )
 
@@ -70,4 +71,14 @@ func (v *Vec3[T]) Cross(u *Vec3[T]) Vec3[T] {
 
 func (v *Vec3[T]) Unit() *Vec3[T] {
 	return v.Div(v.Len())
+}
+
+func (v *Vec3[T]) Color() color.RGBA {
+	// [0,1] → [0,255]
+	return color.RGBA{
+		uint8(255.999 * v.X()),
+		uint8(255.999 * v.Y()),
+		uint8(255.999 * v.Z()),
+		255,
+	}
 }
