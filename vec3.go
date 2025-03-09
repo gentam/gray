@@ -19,7 +19,7 @@ func (v Vec3[T]) X() T { return v[0] }
 func (v Vec3[T]) Y() T { return v[1] }
 func (v Vec3[T]) Z() T { return v[2] }
 
-func (v *Vec3[T]) Neg() *Vec3[T] {
+func (v *Vec3[T]) Negate() *Vec3[T] {
 	v[0] = -v[0]
 	v[1] = -v[1]
 	v[2] = -v[2]

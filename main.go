@@ -17,6 +17,12 @@ func main() {
 		imageHeight = 1
 	}
 
+	// World
+	world := NewHitterList(
+		NewSphere(point(0.0, 0, -1), 0.5),
+		NewSphere(point(0.0, -100.5, -1), 100),
+	)
+
 	// Camera
 	focalLength := 1.0
 	viewportHeight := 2.0
@@ -47,7 +53,7 @@ func main() {
 			rayDirection := pixelCenter.Subtracted(cameraCenter)
 
 			ray := NewRay(cameraCenter, rayDirection)
-			pixelColor := rayColor(ray)
+			pixelColor := rayColor(ray, world)
 			img.Set(i, j, pixelColor.RGBA())
 		}
 	}
@@ -60,11 +66,10 @@ func main() {
 func point[T Float](x, y, z T) Point3[T] { return Point3[T]{x, y, z} }
 func rgb[T Float](r, g, b T) RGB[T]      { return RGB[T]{r, g, b} }
 
-func rayColor[T Float](r *Ray[T]) RGB[T] {
-	c := point[T](0, 0, -1)
-	if t := hitSphere(r, c, 0.5); t > 0 {
-		n := r.At(t).Subtracted(c).Normalized()
-		return rgb(n.X()+1, n.Y()+1, n.Z()+1).Scaled(0.5)
+func rayColor[T Float](r *Ray[T], world *HitterList[T]) RGB[T] {
+	rec := &HitRecord[T]{}
+	if world.Hit(r, 0, T(math.Inf(1)), rec) {
+		return rec.Normal.Added(rgb[T](1, 1, 1)).Scaled(0.5)
 	}
 
 	unitDirection := r.Direction.Normalized()
@@ -72,17 +77,4 @@ func rayColor[T Float](r *Ray[T]) RGB[T] {
 	white := rgb[T](1.0, 1.0, 1.0)
 	blue := rgb[T](0.5, 0.7, 1.0)
 	return white.Scaled(1.0 - a).Added(blue.Scaled(a))
-}
-
-func hitSphere[T Float](r *Ray[T], center Point3[T], radius T) T {
-	oc := center.Subtracted(r.Origin)
-	a := r.Direction.LenSq()
-	h := r.Direction.Dot(oc)
-	c := oc.LenSq() - radius*radius
-	discriminant := h*h - a*c
-
-	if discriminant < 0 {
-		return -1.0
-	}
-	return (h - T(math.Sqrt(float64(discriminant)))) / a
 }
