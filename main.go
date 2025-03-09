@@ -68,7 +68,7 @@ func rgb[T Float](r, g, b T) RGB[T]      { return RGB[T]{r, g, b} }
 
 func rayColor[T Float](r *Ray[T], world *HitterList[T]) RGB[T] {
 	rec := &HitRecord[T]{}
-	if world.Hit(r, 0, T(math.Inf(1)), rec) {
+	if world.Hit(r, NewInterval(0, T(math.Inf(1))), rec) {
 		return rec.Normal.Added(rgb[T](1, 1, 1)).Scaled(0.5)
 	}
 

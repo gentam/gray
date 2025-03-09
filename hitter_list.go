@@ -12,13 +12,13 @@ func (hl *HitterList[T]) Add(hitter Hitter[T]) {
 	hl.hitters = append(hl.hitters, hitter)
 }
 
-func (hl *HitterList[T]) Hit(r *Ray[T], tmin, tmax T, rec *HitRecord[T]) bool {
+func (hl *HitterList[T]) Hit(r *Ray[T], rayT Interval[T], rec *HitRecord[T]) bool {
 	tmpRec := &HitRecord[T]{}
 	hitAnything := false
-	closestSoFar := tmax
+	closestSoFar := rayT.Max
 
 	for _, h := range hl.hitters {
-		if h.Hit(r, tmin, closestSoFar, tmpRec) {
+		if h.Hit(r, NewInterval(rayT.Min, closestSoFar), tmpRec) {
 			hitAnything = true
 			closestSoFar = tmpRec.T
 			*rec = *tmpRec

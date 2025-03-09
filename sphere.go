@@ -11,7 +11,7 @@ func NewSphere[T Float](center Point3[T], radius T) *Sphere[T] {
 	return &Sphere[T]{Center: center, Radius: max(T(0), radius)}
 }
 
-func (s *Sphere[T]) Hit(r *Ray[T], tmin, tmax T, rec *HitRecord[T]) bool {
+func (s *Sphere[T]) Hit(r *Ray[T], rayT Interval[T], rec *HitRecord[T]) bool {
 	oc := s.Center.Subtracted(r.Origin)
 	a := r.Direction.LenSq()
 	h := r.Direction.Dot(oc)
@@ -26,9 +26,9 @@ func (s *Sphere[T]) Hit(r *Ray[T], tmin, tmax T, rec *HitRecord[T]) bool {
 
 	// Find the nearest root that lies in the acceptable range
 	root := (h - sqrtd) / a
-	if root <= tmin || tmax <= root {
+	if !rayT.Surrounds(root) {
 		root = (h + sqrtd) / a
-		if root <= tmin || tmax <= root {
+		if !rayT.Surrounds(root) {
 			return false
 		}
 	}

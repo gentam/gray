@@ -1,7 +1,7 @@
 package main
 
 type Hitter[T Float] interface {
-	Hit(r *Ray[T], tmin, tmax T, hitRecord *HitRecord[T]) bool
+	Hit(r *Ray[T], rayT Interval[T], hitRecord *HitRecord[T]) bool
 }
 
 type HitRecord[T Float] struct {
