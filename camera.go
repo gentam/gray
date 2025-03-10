@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"math"
 	"math/rand"
@@ -93,15 +94,33 @@ func (c *Camera[T]) Render(world Hitter[T]) {
 	rect := image.Rect(0, 0, c.ImageWidth, c.imageHeight)
 	img := image.NewRGBA(rect)
 
+	type result struct {
+		j   int
+		row []color.RGBA
+	}
+	resultCh := make(chan result)
+
+	for j := range c.imageHeight {
+		go func() {
+			row := make([]color.RGBA, c.ImageWidth)
+			for i := range c.ImageWidth {
+				pixelColor := RGB[T]{}
+				for range c.SamplesPerPixel {
+					r := c.getRay(i, j)
+					pixelColor.Add(c.rayColor(r, c.MaxDepth, world))
+				}
+				rgba := pixelColor.Scaled(c.pixelSamplesScale).RGBA()
+				row[i] = rgba
+			}
+			resultCh <- result{j: j, row: row}
+		}()
+	}
+
 	for j := range c.imageHeight {
 		fmt.Fprintf(os.Stderr, "\rScanlines remaining: %d ", c.imageHeight-j)
+		res := <-resultCh
 		for i := range c.ImageWidth {
-			pixelColor := RGB[T]{0, 0, 0}
-			for range c.SamplesPerPixel {
-				r := c.getRay(i, j)
-				pixelColor.Add(c.rayColor(r, c.MaxDepth, world))
-			}
-			img.Set(i, j, pixelColor.Scaled(c.pixelSamplesScale).RGBA())
+			img.Set(i, res.j, res.row[i])
 		}
 	}
 
