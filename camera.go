@@ -10,21 +10,28 @@ import (
 )
 
 type Camera[T Float] struct {
-	AspectRatio       T         // Ratio of image width over height
-	ImageWidth        int       // Rendered image width in pixel count
-	imageHeight       int       // Rendered image height
-	SamplesPerPixel   int       // Number of random samples per pixel
-	pixelSamplesScale T         // Color scale factor for a sum of pixel samples
-	MaxDepth          int       // Maximum number of ray bounces into scene
-	VFOV              T         // Vertical view angle (field of view)
-	LookFrom          Point3[T] // Point camera is looking from
-	LookAt            Point3[T] // Point camera is looking at
-	VUp               Vec3[T]   // Camera-relative "up" direction
-	center            Point3[T] // Camera center
-	pixel00Loc        Point3[T] // Location of pixel 0, 0
-	pixelDeltaU       Vec3[T]   // Offset to pixel to the right
-	pixelDeltaV       Vec3[T]   // Offset to pixel below
-	u, v, w           Vec3[T]   // Camera frame basis vectors
+	AspectRatio       T   // Ratio of image width over height
+	ImageWidth        int // Rendered image width in pixel count
+	imageHeight       int // Rendered image height
+	SamplesPerPixel   int // Number of random samples per pixel
+	pixelSamplesScale T   // Color scale factor for a sum of pixel samples
+	MaxDepth          int // Maximum number of ray bounces into scene
+
+	VFOV     T         // Vertical view angle (field of view)
+	LookFrom Point3[T] // Point camera is looking from
+	LookAt   Point3[T] // Point camera is looking at
+	VUp      Vec3[T]   // Camera-relative "up" direction
+	center   Point3[T] // Camera center
+	u, v, w  Vec3[T]   // Camera frame basis vectors
+
+	DefocusAngle  T       // Variation angle of rays through each pixel
+	FocusDistance T       // Distance from camera lookfrom point to plane of perfect focus
+	defocusDiskU  Vec3[T] // Defocus disk horizontal radius
+	defocusDiskV  Vec3[T] // Defocus disk vertical radius
+
+	pixel00Loc  Point3[T] // Location of pixel 0, 0
+	pixelDeltaU Vec3[T]   // Offset to pixel to the right
+	pixelDeltaV Vec3[T]   // Offset to pixel below
 }
 
 func NewCamera[T Float]() *Camera[T] {
@@ -37,6 +44,8 @@ func NewCamera[T Float]() *Camera[T] {
 		VFOV:   90,
 		LookAt: point[T](0, 0, -1),
 		VUp:    point[T](0, 1, 0),
+
+		FocusDistance: 10,
 	}
 }
 
@@ -48,10 +57,9 @@ func (c *Camera[T]) init() {
 	c.center = c.LookFrom
 
 	// Determine viewport dimensions.
-	focalLength := c.LookFrom.Subtracted(c.LookAt).Len()
 	theta := degreesToRadians(c.VFOV)
 	h := T(math.Tan(float64(theta / 2)))
-	viewportHeight := 2 * h * focalLength
+	viewportHeight := 2 * h * c.FocusDistance
 	viewPortWidth := viewportHeight * (T(c.ImageWidth) / T(c.imageHeight))
 
 	// Calculate the u,v,w unit basis vectors for the camera coordinate frame.
@@ -69,10 +77,15 @@ func (c *Camera[T]) init() {
 
 	// Calculate the location of the upper left pixel.
 	viewportUpperLeft := c.center.
-		Subtracted(c.w.Scaled(focalLength)).
+		Subtracted(c.w.Scaled(c.FocusDistance)).
 		Subtracted(viewportU.Divided(2)).
 		Subtracted(viewportV.Divided(2))
 	c.pixel00Loc = viewportUpperLeft.Added(c.pixelDeltaU.Added(c.pixelDeltaV).Scaled(0.5))
+
+	// Calculate the camera defocus disk basis vectors.
+	defocusRadius := c.FocusDistance * T(math.Tan(float64(degreesToRadians(c.DefocusAngle/2))))
+	c.defocusDiskU = c.u.Scaled(defocusRadius)
+	c.defocusDiskV = c.v.Scaled(defocusRadius)
 }
 
 func (c *Camera[T]) Render(world Hitter[T]) {
@@ -120,7 +133,7 @@ func (c *Camera[T]) rayColor(r *Ray[T], depth int, world Hitter[T]) RGB[T] {
 	return white.Scaled(1.0 - a).Added(blue.Scaled(a))
 }
 
-// getRay returns a camera ray originating from the origin and directed at
+// getRay returns a camera ray originating from the defocus disk and directed at
 // randomly sampled point around the pixel location i, j.
 func (c *Camera[T]) getRay(i, j int) *Ray[T] {
 	offset := c.sampleSquare()
@@ -128,6 +141,9 @@ func (c *Camera[T]) getRay(i, j int) *Ray[T] {
 		Added(c.pixelDeltaU.Scaled(T(i) + offset.X())).
 		Added(c.pixelDeltaV.Scaled(T(j) + offset.Y()))
 	rayOrigin := c.center
+	if c.DefocusAngle > 0 {
+		rayOrigin = c.defocusDiskSample()
+	}
 	rayDirection := pixelSample.Subtracted(rayOrigin)
 
 	return NewRay(rayOrigin, rayDirection)
@@ -141,4 +157,12 @@ func (c *Camera[T]) sampleSquare() Vec3[T] {
 		T(rand.Float64() - 0.5),
 		0,
 	}
+}
+
+// defocusDiskSample returns a random point in the camera defocus disk.
+func (c *Camera[T]) defocusDiskSample() Vec3[T] {
+	p := randomInUnitDisk[T]()
+	return c.center.
+		Added(c.defocusDiskU.Scaled(p[0])).
+		Added(c.defocusDiskV.Scaled(p[1]))
 }

@@ -137,6 +137,15 @@ func randomUnitVec[T Float]() Vec3[T] {
 	}
 }
 
+func randomInUnitDisk[T Float]() Vec3[T] {
+	for {
+		p := Vec3[T]{randomFloatIn[T](-1, 1), randomFloatIn[T](-1, 1), 0}
+		if p.LenSq() < 1 {
+			return p
+		}
+	}
+}
+
 // ----------------------------------------------------------------------------
 
 type Point3[T Float] = Vec3[T]
