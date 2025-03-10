@@ -1,5 +1,10 @@
 package main
 
+import (
+	"math"
+	"math/rand"
+)
+
 type Material[T Float] interface {
 	Scatter(r *Ray[T], rec *HitRecord[T]) (ok bool, scattered *Ray[T], attenuation RGB[T])
 }
@@ -62,7 +67,7 @@ func (d *Dielectric[T]) Scatter(r *Ray[T], rec *HitRecord[T]) (bool, *Ray[T], RG
 
 	var direction Vec3[T]
 	cannotRefract := ri*sinTheta > 1.0
-	if cannotRefract {
+	if cannotRefract || d.reflectance(cosTheta, ri) > T(rand.Float64()) {
 		direction = unitDirection.Reflected(rec.Normal)
 	} else {
 		direction = unitDirection.Refracted(rec.Normal, ri)
@@ -70,4 +75,11 @@ func (d *Dielectric[T]) Scatter(r *Ray[T], rec *HitRecord[T]) (bool, *Ray[T], RG
 
 	scattered := NewRay(rec.P, direction)
 	return true, scattered, RGB[T]{1, 1, 1}
+}
+
+func (d *Dielectric[T]) reflectance(cosine, refractionIndex T) T {
+	// Use Schlick's approximation for reflectance.
+	r0 := (1 - refractionIndex) / (1 + refractionIndex)
+	r0 = r0 * r0
+	return r0 + (1-r0)*T(math.Pow(1-float64(cosine), 5))
 }
