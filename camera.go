@@ -88,7 +88,7 @@ func (c *Camera[T]) rayColor(r *Ray[T], depth int, world Hitter[T]) RGB[T] {
 	rec := &HitRecord[T]{}
 	// 0.001: ignore very close hits to fix shadow acne
 	if world.Hit(r, NewInterval(0.001, T(math.Inf(1))), rec) {
-		direction := randomOnHemisphere(rec.Normal)
+		direction := rec.Normal.Added(randomOnHemisphere(rec.Normal))
 		return c.rayColor(NewRay(rec.P, direction), depth-1, world).Scaled(0.5)
 	}
 
