@@ -16,6 +16,7 @@ type Camera[T Float] struct {
 	SamplesPerPixel   int       // Number of random samples per pixel
 	pixelSamplesScale T         // Color scale factor for a sum of pixel samples
 	MaxDepth          int       // Maximum number of ray bounces into scene
+	VFOV              T         // Vertical view angle (field of view)
 	center            Point3[T] // Camera center
 	pixel00Loc        Point3[T] // Location of pixel 0, 0
 	pixelDeltaU       Vec3[T]   // Offset to pixel to the right
@@ -44,8 +45,10 @@ func (c *Camera[T]) init() {
 	c.center = Vec3[T]{0, 0, 0}
 
 	// Determine viewport dimensions.
-	focalLength := T(1.0)
-	viewportHeight := T(2.0)
+	focalLength := 1.0
+	theta := degreesToRadians(c.VFOV)
+	h := math.Tan(float64(theta / 2))
+	viewportHeight := T(2 * h * focalLength)
 	viewPortWidth := viewportHeight * (T(c.imageWidth) / T(c.imageHeight))
 
 	// Calculate the vectors across the horizontal and down the vertical viewport edges.
@@ -58,7 +61,7 @@ func (c *Camera[T]) init() {
 
 	// Calculate the location of the upper left pixel.
 	viewportUpperLeft := c.center.
-		Subtracted(Vec3[T]{0, 0, focalLength}).
+		Subtracted(Vec3[T]{0, 0, T(focalLength)}).
 		Subtracted(viewportU.Divided(2)).
 		Subtracted(viewportV.Divided(2))
 	c.pixel00Loc = viewportUpperLeft.Added(c.pixelDeltaU.Added(c.pixelDeltaV).Scaled(0.5))

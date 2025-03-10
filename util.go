@@ -24,3 +24,7 @@ func linearToGamma[T Float](x T) T {
 	}
 	return T(math.Sqrt(float64(x)))
 }
+
+func degreesToRadians[T Float](degrees T) T {
+	return degrees * math.Pi / 180.0
+}
