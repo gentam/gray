@@ -26,14 +26,16 @@ func (l *Lambertian[T]) Scatter(r *Ray[T], rec *HitRecord[T]) (bool, *Ray[T], RG
 
 type Metal[T Float] struct {
 	Albedo RGB[T]
+	Fuzz   T
 }
 
-func NewMetal[T Float](albedo RGB[T]) *Metal[T] {
-	return &Metal[T]{Albedo: albedo}
+func NewMetal[T Float](albedo RGB[T], fuzz T) *Metal[T] {
+	return &Metal[T]{Albedo: albedo, Fuzz: min(fuzz, 1)}
 }
 
 func (m *Metal[T]) Scatter(r *Ray[T], rec *HitRecord[T]) (bool, *Ray[T], RGB[T]) {
 	reflected := r.Direction.Reflected(rec.Normal)
+	reflected = reflected.Normalized().Added(randomUnitVec[T]().Scaled(m.Fuzz))
 	scattered := NewRay(rec.P, reflected)
-	return true, scattered, m.Albedo
+	return scattered.Direction.Dot(rec.Normal) > 0, scattered, m.Albedo
 }
