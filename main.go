@@ -4,7 +4,7 @@ func main() {
 	world := NewHitterList[float64]()
 	materialGround := NewLambertian(rgb(0.8, 0.8, 0.0))
 	materialCenter := NewLambertian(rgb(0.1, 0.2, 0.5))
-	materialLeft := NewMetal(rgb(0.8, 0.8, 0.8), 0.3)
+	materialLeft := NewDielectric(1.50)
 	materialRight := NewMetal(rgb(0.8, 0.6, 0.2), 1.0)
 
 	world.Add(NewSphere(point(0.0, -100.5, -1), 100, materialGround))

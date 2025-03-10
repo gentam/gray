@@ -105,6 +105,13 @@ func (v Vec3[T]) Reflected(normal Vec3[T]) Vec3[T] {
 	return v.Subtracted(normal.Scaled(v.Dot(normal)).Scaled(2))
 }
 
+func (v Vec3[T]) Refracted(n Vec3[T], etaiOverEtat T) Vec3[T] {
+	cosTheta := min(v.Negated().Dot(n), 1)
+	rOutPerp := v.Added(n.Scaled(cosTheta)).Scaled(etaiOverEtat)
+	rOutParallel := n.Scaled(T(-sqrt(math.Abs(float64(1 - rOutPerp.LenSq())))))
+	return rOutPerp.Added(rOutParallel)
+}
+
 // ----------------------------------------------------------------------------
 
 // randomFloatIn generates a random float value in [min,max)
@@ -128,14 +135,6 @@ func randomUnitVec[T Float]() Vec3[T] {
 			return p.Divided(sqrt(lensq))
 		}
 	}
-}
-
-func randomOnHemisphere[T Float](normal Vec3[T]) Vec3[T] {
-	onUintSphere := randomUnitVec[T]()
-	if onUintSphere.Dot(normal) > 0 { // In the same hemisphere as the normal
-		return onUintSphere
-	}
-	return onUintSphere.Negated()
 }
 
 // ----------------------------------------------------------------------------
