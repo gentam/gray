@@ -10,58 +10,66 @@ import (
 )
 
 type Camera[T Float] struct {
-	aspectRatio       T         // Ratio of image width over height
-	imageWidth        int       // Rendered image width in pixel count
+	AspectRatio       T         // Ratio of image width over height
+	ImageWidth        int       // Rendered image width in pixel count
 	imageHeight       int       // Rendered image height
 	SamplesPerPixel   int       // Number of random samples per pixel
 	pixelSamplesScale T         // Color scale factor for a sum of pixel samples
 	MaxDepth          int       // Maximum number of ray bounces into scene
 	VFOV              T         // Vertical view angle (field of view)
+	LookFrom          Point3[T] // Point camera is looking from
+	LookAt            Point3[T] // Point camera is looking at
+	VUp               Vec3[T]   // Camera-relative "up" direction
 	center            Point3[T] // Camera center
 	pixel00Loc        Point3[T] // Location of pixel 0, 0
 	pixelDeltaU       Vec3[T]   // Offset to pixel to the right
 	pixelDeltaV       Vec3[T]   // Offset to pixel below
+	u, v, w           Vec3[T]   // Camera frame basis vectors
 }
 
-func NewCamera[T Float](width int, aspectRatio T) *Camera[T] {
-	c := &Camera[T]{}
-	c.imageWidth = width
-	c.aspectRatio = aspectRatio
-	return c
+func NewCamera[T Float]() *Camera[T] {
+	return &Camera[T]{
+		AspectRatio:     1.0,
+		ImageWidth:      100,
+		SamplesPerPixel: 10,
+		MaxDepth:        10,
+
+		VFOV:   90,
+		LookAt: point[T](0, 0, -1),
+		VUp:    point[T](0, 1, 0),
+	}
 }
 
 func (c *Camera[T]) init() {
-	c.imageHeight = max(1, int(T(c.imageWidth)/c.aspectRatio))
+	c.imageHeight = max(1, int(T(c.ImageWidth)/c.AspectRatio))
 
-	if c.SamplesPerPixel <= 0 {
-		c.SamplesPerPixel = 100
-	}
 	c.pixelSamplesScale = T(1.0) / T(c.SamplesPerPixel)
 
-	if c.MaxDepth <= 0 {
-		c.MaxDepth = 50
-	}
-
-	c.center = Vec3[T]{0, 0, 0}
+	c.center = c.LookFrom
 
 	// Determine viewport dimensions.
-	focalLength := 1.0
+	focalLength := c.LookFrom.Subtracted(c.LookAt).Len()
 	theta := degreesToRadians(c.VFOV)
-	h := math.Tan(float64(theta / 2))
-	viewportHeight := T(2 * h * focalLength)
-	viewPortWidth := viewportHeight * (T(c.imageWidth) / T(c.imageHeight))
+	h := T(math.Tan(float64(theta / 2)))
+	viewportHeight := 2 * h * focalLength
+	viewPortWidth := viewportHeight * (T(c.ImageWidth) / T(c.imageHeight))
+
+	// Calculate the u,v,w unit basis vectors for the camera coordinate frame.
+	c.w = c.LookFrom.Subtracted(c.LookAt).Normalized()
+	c.u = c.VUp.Cross(c.w).Normalized()
+	c.v = c.w.Cross(c.u)
 
 	// Calculate the vectors across the horizontal and down the vertical viewport edges.
-	viewportU := Vec3[T]{viewPortWidth, 0, 0}
-	viewportV := Vec3[T]{0, -viewportHeight, 0}
+	viewportU := c.u.Scaled(viewPortWidth)   // Vector across viewport horizontal edge
+	viewportV := c.v.Scaled(-viewportHeight) // Vector down viewport vertical edge
 
 	// Calculate the horizontal and vertical delta vectors from pixel to pixel.
-	c.pixelDeltaU = viewportU.Divided(T(c.imageWidth))
+	c.pixelDeltaU = viewportU.Divided(T(c.ImageWidth))
 	c.pixelDeltaV = viewportV.Divided(T(c.imageHeight))
 
 	// Calculate the location of the upper left pixel.
 	viewportUpperLeft := c.center.
-		Subtracted(Vec3[T]{0, 0, T(focalLength)}).
+		Subtracted(c.w.Scaled(focalLength)).
 		Subtracted(viewportU.Divided(2)).
 		Subtracted(viewportV.Divided(2))
 	c.pixel00Loc = viewportUpperLeft.Added(c.pixelDeltaU.Added(c.pixelDeltaV).Scaled(0.5))
@@ -69,12 +77,12 @@ func (c *Camera[T]) init() {
 
 func (c *Camera[T]) Render(world Hitter[T]) {
 	c.init()
-	rect := image.Rect(0, 0, c.imageWidth, c.imageHeight)
+	rect := image.Rect(0, 0, c.ImageWidth, c.imageHeight)
 	img := image.NewRGBA(rect)
 
 	for j := range c.imageHeight {
 		fmt.Fprintf(os.Stderr, "\rScanlines remaining: %d ", c.imageHeight-j)
-		for i := range c.imageWidth {
+		for i := range c.ImageWidth {
 			pixelColor := RGB[T]{0, 0, 0}
 			for range c.SamplesPerPixel {
 				r := c.getRay(i, j)
