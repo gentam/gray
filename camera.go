@@ -13,24 +13,33 @@ type Camera[T Float] struct {
 	aspectRatio       T         // Ratio of image width over height
 	imageWidth        int       // Rendered image width in pixel count
 	imageHeight       int       // Rendered image height
-	samplesPerPixel   int       // Number of random samples per pixel
+	SamplesPerPixel   int       // Number of random samples per pixel
 	pixelSamplesScale T         // Color scale factor for a sum of pixel samples
-	maxDepth          int       // Maximum number of ray bounces into scene
+	MaxDepth          int       // Maximum number of ray bounces into scene
 	center            Point3[T] // Camera center
 	pixel00Loc        Point3[T] // Location of pixel 0, 0
 	pixelDeltaU       Vec3[T]   // Offset to pixel to the right
 	pixelDeltaV       Vec3[T]   // Offset to pixel below
 }
 
-func NewCamera[T Float](width int, aspectRatio T, samplesPerPixel, maxDepth int) *Camera[T] {
+func NewCamera[T Float](width int, aspectRatio T) *Camera[T] {
 	c := &Camera[T]{}
 	c.imageWidth = width
 	c.aspectRatio = aspectRatio
-	c.maxDepth = maxDepth
+	return c
+}
+
+func (c *Camera[T]) init() {
 	c.imageHeight = max(1, int(T(c.imageWidth)/c.aspectRatio))
 
-	c.samplesPerPixel = samplesPerPixel
-	c.pixelSamplesScale = T(1.0) / T(c.samplesPerPixel)
+	if c.SamplesPerPixel <= 0 {
+		c.SamplesPerPixel = 100
+	}
+	c.pixelSamplesScale = T(1.0) / T(c.SamplesPerPixel)
+
+	if c.MaxDepth <= 0 {
+		c.MaxDepth = 50
+	}
 
 	c.center = Vec3[T]{0, 0, 0}
 
@@ -53,11 +62,10 @@ func NewCamera[T Float](width int, aspectRatio T, samplesPerPixel, maxDepth int)
 		Subtracted(viewportU.Divided(2)).
 		Subtracted(viewportV.Divided(2))
 	c.pixel00Loc = viewportUpperLeft.Added(c.pixelDeltaU.Added(c.pixelDeltaV).Scaled(0.5))
-
-	return c
 }
 
 func (c *Camera[T]) Render(world Hitter[T]) {
+	c.init()
 	rect := image.Rect(0, 0, c.imageWidth, c.imageHeight)
 	img := image.NewRGBA(rect)
 
@@ -65,9 +73,9 @@ func (c *Camera[T]) Render(world Hitter[T]) {
 		fmt.Fprintf(os.Stderr, "\rScanlines remaining: %d ", c.imageHeight-j)
 		for i := range c.imageWidth {
 			pixelColor := RGB[T]{0, 0, 0}
-			for range c.samplesPerPixel {
+			for range c.SamplesPerPixel {
 				r := c.getRay(i, j)
-				pixelColor.Add(c.rayColor(r, c.maxDepth, world))
+				pixelColor.Add(c.rayColor(r, c.MaxDepth, world))
 			}
 			img.Set(i, j, pixelColor.Scaled(c.pixelSamplesScale).RGBA())
 		}
