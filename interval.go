@@ -19,3 +19,13 @@ func (i Interval[T]) Contains(x T) bool {
 func (i Interval[T]) Surrounds(x T) bool {
 	return i.Min < x && x < i.Max
 }
+
+func (i Interval[T]) Clamp(x T) T {
+	if x < i.Min {
+		return i.Min
+	}
+	if x > i.Max {
+		return i.Max
+	}
+	return x
+}
