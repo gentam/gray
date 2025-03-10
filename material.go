@@ -57,7 +57,17 @@ func (d *Dielectric[T]) Scatter(r *Ray[T], rec *HitRecord[T]) (bool, *Ray[T], RG
 	}
 
 	unitDirection := r.Direction.Normalized()
-	refracted := unitDirection.Refracted(rec.Normal, ri)
+	cosTheta := min(unitDirection.Negated().Dot(rec.Normal), 1)
+	sinTheta := sqrt(1 - cosTheta*cosTheta)
 
-	return true, NewRay(rec.P, refracted), RGB[T]{1, 1, 1}
+	var direction Vec3[T]
+	cannotRefract := ri*sinTheta > 1.0
+	if cannotRefract {
+		direction = unitDirection.Reflected(rec.Normal)
+	} else {
+		direction = unitDirection.Refracted(rec.Normal, ri)
+	}
+
+	scattered := NewRay(rec.P, direction)
+	return true, scattered, RGB[T]{1, 1, 1}
 }
