@@ -1,12 +1,17 @@
 package main
 
 type Sphere[T Float] struct {
-	Center Point3[T]
-	Radius T
+	Center   Point3[T]
+	Radius   T
+	Material Material[T]
 }
 
-func NewSphere[T Float](center Point3[T], radius T) *Sphere[T] {
-	return &Sphere[T]{Center: center, Radius: max(T(0), radius)}
+func NewSphere[T Float](center Point3[T], radius T, material Material[T]) *Sphere[T] {
+	return &Sphere[T]{
+		Center:   center,
+		Radius:   max(T(0), radius),
+		Material: material,
+	}
 }
 
 func (s *Sphere[T]) Hit(r *Ray[T], rayT Interval[T], rec *HitRecord[T]) bool {
@@ -35,6 +40,7 @@ func (s *Sphere[T]) Hit(r *Ray[T], rayT Interval[T], rec *HitRecord[T]) bool {
 	rec.P = r.At(rec.T)
 	outwardNormal := rec.P.Subtracted(s.Center).Divided(s.Radius)
 	rec.SetFaceNormal(r, outwardNormal)
+	rec.Material = s.Material
 
 	return true
 }

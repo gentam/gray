@@ -7,6 +7,7 @@ type Hitter[T Float] interface {
 type HitRecord[T Float] struct {
 	P         Point3[T]
 	Normal    Vec3[T]
+	Material  Material[T]
 	T         T
 	FrontFace bool
 }

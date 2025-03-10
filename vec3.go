@@ -2,6 +2,7 @@ package main
 
 import (
 	"image/color"
+	"math"
 	"math/rand"
 )
 
@@ -62,6 +63,11 @@ func (v Vec3[T]) Divided(s T) Vec3[T] {
 	return v.Scaled(1 / s)
 }
 
+// Multiplied returns the element-wise product of v and u.
+func (v Vec3[T]) Multiplied(u Vec3[T]) Vec3[T] {
+	return Vec3[T]{v[0] * u[0], v[1] * u[1], v[2] * u[2]}
+}
+
 func (v Vec3[T]) Len() T {
 	return sqrt(v.LenSq())
 }
@@ -86,6 +92,17 @@ func (v *Vec3[T]) Normalize() *Vec3[T] {
 }
 func (v Vec3[T]) Normalized() Vec3[T] {
 	return v.Divided(v.Len())
+}
+
+func (v Vec3[T]) NearZero() bool {
+	s := 1e-8
+	return math.Abs(float64(v[0])) < s &&
+		math.Abs(float64(v[1])) < s &&
+		math.Abs(float64(v[2])) < s
+}
+
+func (v Vec3[T]) Reflected(normal Vec3[T]) Vec3[T] {
+	return v.Subtracted(normal.Scaled(v.Dot(normal)).Scaled(2))
 }
 
 // ----------------------------------------------------------------------------
