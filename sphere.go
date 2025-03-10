@@ -1,7 +1,5 @@
 package main
 
-import "math"
-
 type Sphere[T Float] struct {
 	Center Point3[T]
 	Radius T
@@ -22,7 +20,7 @@ func (s *Sphere[T]) Hit(r *Ray[T], rayT Interval[T], rec *HitRecord[T]) bool {
 		return false
 	}
 
-	sqrtd := T(math.Sqrt(float64(discriminant)))
+	sqrtd := sqrt(discriminant)
 
 	// Find the nearest root that lies in the acceptable range
 	root := (h - sqrtd) / a

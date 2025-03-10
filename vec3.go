@@ -2,14 +2,10 @@ package main
 
 import (
 	"image/color"
-	"math"
+	"math/rand"
 )
 
 type Vec3[T Float] [3]T
-
-type Float interface {
-	~float32 | ~float64
-}
 
 func NewVec3[T Float](x, y, z T) Vec3[T] {
 	return Vec3[T]{x, y, z}
@@ -67,7 +63,7 @@ func (v Vec3[T]) Divided(s T) Vec3[T] {
 }
 
 func (v Vec3[T]) Len() T {
-	return T(math.Sqrt(float64(v.LenSq())))
+	return sqrt(v.LenSq())
 }
 func (v Vec3[T]) LenSq() T {
 	return v[0]*v[0] + v[1]*v[1] + v[2]*v[2]
@@ -90,6 +86,39 @@ func (v *Vec3[T]) Normalize() *Vec3[T] {
 }
 func (v Vec3[T]) Normalized() Vec3[T] {
 	return v.Divided(v.Len())
+}
+
+// ----------------------------------------------------------------------------
+
+// randomFloatIn generates a random float value in [min,max)
+func randomFloatIn[T Float](min, max T) T {
+	return min + (max-min)*T(rand.Float64())
+}
+
+func randomVecIn[T Float](min, max T) Vec3[T] {
+	return Vec3[T]{
+		randomFloatIn(min, max),
+		randomFloatIn(min, max),
+		randomFloatIn(min, max),
+	}
+}
+
+func randomUnitVec[T Float]() Vec3[T] {
+	for {
+		p := randomVecIn[T](-1, 1)
+		lensq := p.LenSq()
+		if 1e-160 < lensq && lensq <= 1 {
+			return p.Divided(sqrt(lensq))
+		}
+	}
+}
+
+func randomOnHemisphere[T Float](normal Vec3[T]) Vec3[T] {
+	onUintSphere := randomUnitVec[T]()
+	if onUintSphere.Dot(normal) > 0 { // In the same hemisphere as the normal
+		return onUintSphere
+	}
+	return onUintSphere.Negated()
 }
 
 // ----------------------------------------------------------------------------

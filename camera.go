@@ -15,16 +15,18 @@ type Camera[T Float] struct {
 	imageHeight       int       // Rendered image height
 	samplesPerPixel   int       // Number of random samples per pixel
 	pixelSamplesScale T         // Color scale factor for a sum of pixel samples
+	maxDepth          int       // Maximum number of ray bounces into scene
 	center            Point3[T] // Camera center
 	pixel00Loc        Point3[T] // Location of pixel 0, 0
 	pixelDeltaU       Vec3[T]   // Offset to pixel to the right
 	pixelDeltaV       Vec3[T]   // Offset to pixel below
 }
 
-func NewCamera[T Float](width int, aspectRatio T, samplesPerPixel int) *Camera[T] {
+func NewCamera[T Float](width int, aspectRatio T, samplesPerPixel, maxDepth int) *Camera[T] {
 	c := &Camera[T]{}
 	c.imageWidth = width
 	c.aspectRatio = aspectRatio
+	c.maxDepth = maxDepth
 	c.imageHeight = max(1, int(T(c.imageWidth)/c.aspectRatio))
 
 	c.samplesPerPixel = samplesPerPixel
@@ -65,7 +67,7 @@ func (c *Camera[T]) Render(world Hitter[T]) {
 			pixelColor := RGB[T]{0, 0, 0}
 			for range c.samplesPerPixel {
 				r := c.getRay(i, j)
-				pixelColor.Add(c.rayColor(r, world))
+				pixelColor.Add(c.rayColor(r, c.maxDepth, world))
 			}
 			img.Set(i, j, pixelColor.Scaled(c.pixelSamplesScale).RGBA())
 		}
@@ -77,10 +79,17 @@ func (c *Camera[T]) Render(world Hitter[T]) {
 	fmt.Fprintln(os.Stderr, "\rDone.                 ")
 }
 
-func (c *Camera[T]) rayColor(r *Ray[T], world Hitter[T]) RGB[T] {
+func (c *Camera[T]) rayColor(r *Ray[T], depth int, world Hitter[T]) RGB[T] {
+	// If we've exceeded the ray bounce limit, no more light is gathered.
+	if depth <= 0 {
+		return RGB[T]{}
+	}
+
 	rec := &HitRecord[T]{}
-	if world.Hit(r, NewInterval(0, T(math.Inf(1))), rec) {
-		return rec.Normal.Added(RGB[T]{1, 1, 1}).Scaled(0.5)
+	// 0.001: ignore very close hits to fix shadow acne
+	if world.Hit(r, NewInterval(0.001, T(math.Inf(1))), rec) {
+		direction := randomOnHemisphere(rec.Normal)
+		return c.rayColor(NewRay(rec.P, direction), depth-1, world).Scaled(0.5)
 	}
 
 	unitDirection := r.Direction.Normalized()
