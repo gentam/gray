@@ -3,6 +3,7 @@ package main
 import (
 	"gray"
 	"math/rand"
+	"os"
 )
 
 func main() {
@@ -62,7 +63,7 @@ func main() {
 	camera.DefocusAngle = 0.6
 	camera.FocusDistance = 10
 
-	camera.Render(world)
+	camera.RenderPNG(os.Stdout, world)
 }
 
 func point[T gray.Float](x, y, z T) gray.Point3[T] {

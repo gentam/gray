@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"math"
 	"math/rand"
 	"os"
@@ -89,7 +90,7 @@ func (c *Camera[T]) init() {
 	c.defocusDiskV = c.v.Scaled(defocusRadius)
 }
 
-func (c *Camera[T]) Render(world Hitter[T]) {
+func (c *Camera[T]) RenderPNG(w io.Writer, world Hitter[T]) {
 	c.init()
 	rect := image.Rect(0, 0, c.ImageWidth, c.imageHeight)
 	img := image.NewRGBA(rect)
@@ -124,7 +125,7 @@ func (c *Camera[T]) Render(world Hitter[T]) {
 		}
 	}
 
-	if err := png.Encode(os.Stdout, img); err != nil {
+	if err := png.Encode(w, img); err != nil {
 		panic(err)
 	}
 	fmt.Fprintln(os.Stderr, "\rDone.                 ")
