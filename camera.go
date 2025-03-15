@@ -14,7 +14,7 @@ import (
 type Camera[T Float] struct {
 	AspectRatio       T   // Ratio of image width over height
 	ImageWidth        int // Rendered image width in pixel count
-	imageHeight       int // Rendered image height
+	ImageHeight       int // Rendered image height
 	SamplesPerPixel   int // Number of random samples per pixel
 	pixelSamplesScale T   // Color scale factor for a sum of pixel samples
 	MaxDepth          int // Maximum number of ray bounces into scene
@@ -52,7 +52,11 @@ func NewCamera[T Float]() *Camera[T] {
 }
 
 func (c *Camera[T]) init() {
-	c.imageHeight = max(1, int(T(c.ImageWidth)/c.AspectRatio))
+	if c.ImageHeight == 0 {
+		c.ImageHeight = max(1, int(T(c.ImageWidth)/c.AspectRatio))
+	} else {
+		c.AspectRatio = T(c.ImageWidth) / T(c.ImageHeight)
+	}
 
 	c.pixelSamplesScale = T(1.0) / T(c.SamplesPerPixel)
 
@@ -62,7 +66,7 @@ func (c *Camera[T]) init() {
 	theta := degreesToRadians(c.VFOV)
 	h := T(math.Tan(float64(theta / 2)))
 	viewportHeight := 2 * h * c.FocusDistance
-	viewPortWidth := viewportHeight * (T(c.ImageWidth) / T(c.imageHeight))
+	viewPortWidth := viewportHeight * (T(c.ImageWidth) / T(c.ImageHeight))
 
 	// Calculate the u,v,w unit basis vectors for the camera coordinate frame.
 	c.w = c.LookFrom.Subtracted(c.LookAt).Normalized()
@@ -75,7 +79,7 @@ func (c *Camera[T]) init() {
 
 	// Calculate the horizontal and vertical delta vectors from pixel to pixel.
 	c.pixelDeltaU = viewportU.Divided(T(c.ImageWidth))
-	c.pixelDeltaV = viewportV.Divided(T(c.imageHeight))
+	c.pixelDeltaV = viewportV.Divided(T(c.ImageHeight))
 
 	// Calculate the location of the upper left pixel.
 	viewportUpperLeft := c.center.
@@ -92,7 +96,7 @@ func (c *Camera[T]) init() {
 
 func (c *Camera[T]) RenderPNG(w io.Writer, world Hitter[T]) {
 	c.init()
-	rect := image.Rect(0, 0, c.ImageWidth, c.imageHeight)
+	rect := image.Rect(0, 0, c.ImageWidth, c.ImageHeight)
 	img := image.NewRGBA(rect)
 
 	type result struct {
@@ -101,7 +105,7 @@ func (c *Camera[T]) RenderPNG(w io.Writer, world Hitter[T]) {
 	}
 	resultCh := make(chan result)
 
-	for j := range c.imageHeight {
+	for j := range c.ImageHeight {
 		go func() {
 			row := make([]color.RGBA, c.ImageWidth)
 			for i := range c.ImageWidth {
@@ -117,8 +121,8 @@ func (c *Camera[T]) RenderPNG(w io.Writer, world Hitter[T]) {
 		}()
 	}
 
-	for j := range c.imageHeight {
-		fmt.Fprintf(os.Stderr, "\rScanlines remaining: %d ", c.imageHeight-j)
+	for j := range c.ImageHeight {
+		fmt.Fprintf(os.Stderr, "\rScanlines remaining: %d ", c.ImageHeight-j)
 		res := <-resultCh
 		for i := range c.ImageWidth {
 			img.Set(i, res.j, res.row[i])
