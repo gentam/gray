@@ -1,4 +1,4 @@
-package main
+package gray
 
 import (
 	"image/color"
@@ -114,22 +114,22 @@ func (v Vec3[T]) Refracted(n Vec3[T], etaiOverEtat T) Vec3[T] {
 
 // ----------------------------------------------------------------------------
 
-// randomFloatIn generates a random float value in [min,max)
-func randomFloatIn[T Float](min, max T) T {
+// RandomFloatIn generates a random float value in [min,max)
+func RandomFloatIn[T Float](min, max T) T {
 	return min + (max-min)*T(rand.Float64())
 }
 
-func randomVecIn[T Float](min, max T) Vec3[T] {
+func RandomVecIn[T Float](min, max T) Vec3[T] {
 	return Vec3[T]{
-		randomFloatIn(min, max),
-		randomFloatIn(min, max),
-		randomFloatIn(min, max),
+		RandomFloatIn(min, max),
+		RandomFloatIn(min, max),
+		RandomFloatIn(min, max),
 	}
 }
 
 func randomUnitVec[T Float]() Vec3[T] {
 	for {
-		p := randomVecIn[T](-1, 1)
+		p := RandomVecIn[T](-1, 1)
 		lensq := p.LenSq()
 		if 1e-160 < lensq && lensq <= 1 {
 			return p.Divided(sqrt(lensq))
@@ -139,7 +139,7 @@ func randomUnitVec[T Float]() Vec3[T] {
 
 func randomInUnitDisk[T Float]() Vec3[T] {
 	for {
-		p := Vec3[T]{randomFloatIn[T](-1, 1), randomFloatIn[T](-1, 1), 0}
+		p := Vec3[T]{RandomFloatIn[T](-1, 1), RandomFloatIn[T](-1, 1), 0}
 		if p.LenSq() < 1 {
 			return p
 		}

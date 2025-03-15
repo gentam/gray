@@ -1,4 +1,4 @@
-package main
+package gray
 
 type Sphere[T Float] struct {
 	Center   Point3[T]

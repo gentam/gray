@@ -1,4 +1,4 @@
-package main
+package gray
 
 import (
 	"fmt"
@@ -43,8 +43,8 @@ func NewCamera[T Float]() *Camera[T] {
 		MaxDepth:        10,
 
 		VFOV:   90,
-		LookAt: point[T](0, 0, -1),
-		VUp:    point[T](0, 1, 0),
+		LookAt: Point3[T]{0, 0, -1},
+		VUp:    Vec3[T]{0, 1, 0},
 
 		FocusDistance: 10,
 	}

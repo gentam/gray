@@ -1,4 +1,4 @@
-package main
+package gray
 
 type Interval[T Float] struct {
 	Min, Max T

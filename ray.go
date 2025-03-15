@@ -1,4 +1,4 @@
-package main
+package gray
 
 type Ray[T Float] struct {
 	Origin    Point3[T]

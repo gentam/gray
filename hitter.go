@@ -1,4 +1,4 @@
-package main
+package gray
 
 type Hitter[T Float] interface {
 	Hit(r *Ray[T], rayT Interval[T], hitRecord *HitRecord[T]) bool
