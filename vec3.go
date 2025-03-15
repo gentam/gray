@@ -152,6 +152,17 @@ type Point3[T Float] = Vec3[T]
 
 type RGB[T Float] = Vec3[T]
 
+func (v Vec3[T]) RGB() (R uint8, G uint8, B uint8) {
+	// [0,1] → [0,255]
+	r := linearToGamma(v.X())
+	g := linearToGamma(v.Y())
+	b := linearToGamma(v.Z())
+	intensity := NewInterval[T](0.000, 0.999)
+	return uint8(255.999 * intensity.Clamp(r)),
+		uint8(255.999 * intensity.Clamp(g)),
+		uint8(255.999 * intensity.Clamp(b))
+}
+
 func (v Vec3[T]) RGBA() color.RGBA {
 	// [0,1] → [0,255]
 	r := linearToGamma(v.X())

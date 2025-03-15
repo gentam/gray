@@ -2,7 +2,7 @@ package main
 
 import (
 	"gray"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 )
 

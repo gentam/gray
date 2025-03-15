@@ -7,8 +7,11 @@ import (
 	"image/png"
 	"io"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"os"
+	"runtime"
+	"sync"
+	"time"
 )
 
 type Camera[T Float] struct {
@@ -133,6 +136,76 @@ func (c *Camera[T]) RenderPNG(w io.Writer, world Hitter[T]) {
 		panic(err)
 	}
 	fmt.Fprintln(os.Stderr, "\rDone.                 ")
+}
+
+type Pixel struct {
+	X, Y    int
+	R, B, G uint8
+}
+
+func (c *Camera[T]) RenderStream(ch chan<- []Pixel, world Hitter[T]) {
+	c.init()
+
+	// workers
+	queue := make(chan [2]int)
+	bufCh := make(chan Pixel)
+	wg := sync.WaitGroup{}
+	numCPU := runtime.NumCPU()
+	wg.Add(numCPU)
+	for range numCPU {
+		go func() {
+			for pos := range queue {
+				i, j := pos[0], pos[1]
+				pixelColor := RGB[T]{}
+				for range c.SamplesPerPixel {
+					r := c.getRay(i, j)
+					pixelColor.Add(c.rayColor(r, c.MaxDepth, world))
+				}
+				r, g, b := pixelColor.Scaled(c.pixelSamplesScale).RGB()
+				bufCh <- Pixel{X: i, Y: j, R: r, G: g, B: b}
+			}
+			wg.Done()
+		}()
+	}
+
+	n := c.ImageWidth * c.ImageHeight
+	pts := make([][2]int, n)
+	for j := range c.ImageHeight {
+		for i := range c.ImageWidth {
+			pts[j*c.ImageWidth+i] = [2]int{i, j}
+		}
+	}
+	rand.Shuffle(n, func(i int, j int) {
+		pts[i], pts[j] = pts[j], pts[i]
+	})
+	go func() {
+		for _, pt := range pts {
+			queue <- pt
+		}
+		close(queue)
+		wg.Wait()
+		close(bufCh)
+	}()
+
+	const bufSize = 1 << 12
+	buf := make([]Pixel, 0, bufSize)
+	const interval = 10 * time.Millisecond
+	timer := time.NewTimer(interval)
+	for i := n; i > 0; {
+		select {
+		case pt := <-bufCh:
+			buf = append(buf, pt)
+		case <-timer.C:
+			if len(buf) > 0 {
+				ch <- buf
+				i -= len(buf)
+				// NOTE: buf[:0] will cause data race
+				buf = make([]Pixel, 0, bufSize)
+			}
+			timer.Reset(interval)
+		}
+	}
+	close(ch)
 }
 
 func (c *Camera[T]) rayColor(r *Ray[T], depth int, world Hitter[T]) RGB[T] {
