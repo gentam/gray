@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Gray</title>
+    </head>
+    <body style="background-color: gray">
+        <code id="error" style="color: red; background-color: white"></code>
+        <canvas
+            id="canvas"
+            style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+            "
+        ></canvas>
+        <script>
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const img = ctx.createImageData(canvas.width, canvas.height);
+
+            function dot(x, y, r, g, b) {
+                const i = (y * canvas.width + x) * 4;
+                img.data[i + 0] = r;
+                img.data[i + 1] = g;
+                img.data[i + 2] = b;
+                img.data[i + 3] = 255;
+            }
+
+            let ws;
+            function listenWS() {
+                ws = new WebSocket(`ws://localhost:8080/ws`);
+                ws.binaryType = "arraybuffer";
+
+                ws.onopen = () => {
+                    // initialize dimension
+                    const buf = new ArrayBuffer(8); // uint32 x 2
+                    const view = new DataView(buf);
+                    view.setUint32(0, canvas.width, true); // little-endian
+                    view.setUint32(4, canvas.height, true);
+                    ws.send(buf);
+                };
+
+                ws.onmessage = (ev) => {
+                    const buf = ev.data;
+                    const dataView = new DataView(buf);
+                    // process 7 bytes per dot (x,y: 2 bytes, r,g,b: 1 byte)
+                    for (let offset = 0; offset < buf.byteLength; offset += 7) {
+                        const x = dataView.getUint16(offset, true); // little-endian
+                        const y = dataView.getUint16(offset + 2, true);
+                        const r = dataView.getUint8(offset + 4);
+                        const g = dataView.getUint8(offset + 5);
+                        const b = dataView.getUint8(offset + 6);
+
+                        dot(x, y, r, g, b);
+                    }
+                    ctx.putImageData(img, 0, 0);
+                };
+
+                ws.onerror = (ev) => {
+                    document.getElementById("error").innerText =
+                        "WebSocket connection error";
+                };
+            }
+            listenWS();
+        </script>
+    </body>
+</html>
