@@ -24,6 +24,7 @@
             canvas.height = window.innerHeight;
 
             const img = ctx.createImageData(canvas.width, canvas.height);
+            let config = {};
 
             function dot(x, y, r, g, b) {
                 const i = (y * canvas.width + x) * 4;
@@ -39,12 +40,7 @@
                 ws.binaryType = "arraybuffer";
 
                 ws.onopen = () => {
-                    // initialize dimension
-                    const buf = new ArrayBuffer(8); // uint32 x 2
-                    const view = new DataView(buf);
-                    view.setUint32(0, canvas.width, true); // little-endian
-                    view.setUint32(4, canvas.height, true);
-                    ws.send(buf);
+                    updateConfig();
                 };
 
                 ws.onmessage = (ev) => {
@@ -68,6 +64,17 @@
                         "WebSocket connection error";
                 };
             }
+
+            function updateConfig() {
+                if (ws.readyState !== WebSocket.OPEN) return;
+                const numFields = 2;
+                const buf = new ArrayBuffer(numFields * 4);
+                const view = new DataView(buf);
+                view.setUint32(0, canvas.width, true); // little-endian
+                view.setUint32(4, canvas.height, true);
+                ws.send(buf);
+            }
+
             listenWS();
         </script>
     </body>
