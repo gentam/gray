@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"encoding/binary"
 	"fmt"
@@ -96,7 +97,7 @@ func render(world gray.Hitter[float64], camera *gray.Camera[float64], sendCh cha
 	start := time.Now()
 	pointsCh := make(chan []gray.Pixel)
 
-	go camera.RenderStream(pointsCh, world)
+	go camera.RenderStream(context.Background(), pointsCh, world)
 
 	for points := range pointsCh {
 		select {

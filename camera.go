@@ -1,6 +1,7 @@
 package gray
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -143,7 +144,10 @@ type Pixel struct {
 	R, B, G uint8
 }
 
-func (c *Camera[T]) RenderStream(ch chan<- []Pixel, world Hitter[T]) {
+func (c *Camera[T]) RenderStream(ctx context.Context, streamCh chan<- []Pixel, world Hitter[T]) {
+	if ctx.Err() != nil {
+		return
+	}
 	c.init()
 
 	// workers
@@ -154,7 +158,14 @@ func (c *Camera[T]) RenderStream(ch chan<- []Pixel, world Hitter[T]) {
 	wg.Add(numCPU)
 	for range numCPU {
 		go func() {
+			defer wg.Done()
 			for pos := range queue {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
 				i, j := pos[0], pos[1]
 				pixelColor := RGB[T]{}
 				for range c.SamplesPerPixel {
@@ -164,7 +175,6 @@ func (c *Camera[T]) RenderStream(ch chan<- []Pixel, world Hitter[T]) {
 				r, g, b := pixelColor.Scaled(c.pixelSamplesScale).RGB()
 				bufCh <- Pixel{X: i, Y: j, R: r, G: g, B: b}
 			}
-			wg.Done()
 		}()
 	}
 
@@ -178,26 +188,41 @@ func (c *Camera[T]) RenderStream(ch chan<- []Pixel, world Hitter[T]) {
 	rand.Shuffle(n, func(i int, j int) {
 		pts[i], pts[j] = pts[j], pts[i]
 	})
-	go func() {
+	go func() { // work distribution
 		for _, pt := range pts {
+			select {
+			case <-ctx.Done():
+				goto cleanup
+			default:
+			}
 			queue <- pt
 		}
+	cleanup:
 		close(queue)
 		wg.Wait()
 		close(bufCh)
 	}()
 
+	// buffer pixels for the interval and stream in batches
 	const bufSize = 1 << 12
 	buf := make([]Pixel, 0, bufSize)
 	const interval = 10 * time.Millisecond
 	timer := time.NewTimer(interval)
 	for i := n; i > 0; {
 		select {
-		case pt := <-bufCh:
+		case <-ctx.Done():
+			if len(buf) > 0 {
+				streamCh <- buf
+			}
+			goto cleanup
+		case pt, ok := <-bufCh:
+			if !ok {
+				goto cleanup
+			}
 			buf = append(buf, pt)
 		case <-timer.C:
 			if len(buf) > 0 {
-				ch <- buf
+				streamCh <- buf
 				i -= len(buf)
 				// NOTE: buf[:0] will cause data race
 				buf = make([]Pixel, 0, bufSize)
@@ -205,7 +230,9 @@ func (c *Camera[T]) RenderStream(ch chan<- []Pixel, world Hitter[T]) {
 			timer.Reset(interval)
 		}
 	}
-	close(ch)
+cleanup:
+	timer.Stop()
+	close(streamCh)
 }
 
 func (c *Camera[T]) rayColor(r *Ray[T], depth int, world Hitter[T]) RGB[T] {
