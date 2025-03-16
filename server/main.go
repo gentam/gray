@@ -87,7 +87,8 @@ func readConfig(p []byte) renderConfig {
 	c.fromX = math.Float32frombits(binary.LittleEndian.Uint32(p[8:12]))
 	c.fromY = math.Float32frombits(binary.LittleEndian.Uint32(p[12:16]))
 	c.fromZ = math.Float32frombits(binary.LittleEndian.Uint32(p[16:20]))
-	fmt.Printf("canvas: %dx%d, from: (%.2f,%.2f,%.2f)\n", c.width, c.height, c.fromX, c.fromY, c.fromZ)
+	fmt.Printf("canvas: %dx%d, from: (%.2f,%.2f,%.2f)\n",
+		c.width, c.height, c.fromX, c.fromY, c.fromZ)
 	return c
 }
 

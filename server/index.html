@@ -23,7 +23,7 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
 
-            const img = ctx.createImageData(canvas.width, canvas.height);
+            let img = ctx.createImageData(canvas.width, canvas.height);
             function dot(x, y, r, g, b) {
                 const i = (y * canvas.width + x) * 4;
                 img.data[i + 0] = r;
@@ -64,20 +64,20 @@
             }
 
             let config = {
-                lookFromX: 13.0,
-                lookFromY: 2.0,
-                lookFromZ: 3.0,
+                fromX: 13.0,
+                fromY: 2.0,
+                fromZ: 3.0,
             };
             function updateConfig() {
                 if (ws.readyState !== WebSocket.OPEN) return;
-                const numFields = 5;
+                const numFields = 8;
                 const buf = new ArrayBuffer(numFields * 4);
                 const view = new DataView(buf);
                 view.setUint32(0, canvas.width, true); // little-endian
                 view.setUint32(4, canvas.height, true);
-                view.setFloat32(8, config.lookFromX, true);
-                view.setFloat32(12, config.lookFromY, true);
-                view.setFloat32(16, config.lookFromZ, true);
+                view.setFloat32(8, config.fromX, true);
+                view.setFloat32(12, config.fromY, true);
+                view.setFloat32(16, config.fromZ, true);
 
                 ws.send(buf);
             }
@@ -87,28 +87,36 @@
                 const delta = 0.25;
                 switch (ev.key) {
                     case "ArrowLeft":
-                        config.lookFromX -= delta;
+                        config.fromX -= delta;
                         break;
                     case "ArrowRight":
-                        config.lookFromX += delta;
+                        config.fromX += delta;
                         break;
                     case "ArrowUp":
-                        if (ev.shiftKey) config.lookFromZ += delta;
-                        else config.lookFromY += delta;
+                        if (ev.shiftKey) config.fromZ += delta;
+                        else config.fromY += delta;
                         break;
                     case "ArrowDown":
-                        if (ev.shiftKey) config.lookFromZ -= delta;
-                        else config.lookFromY -= delta;
+                        if (ev.shiftKey) config.fromZ -= delta;
+                        else config.fromY -= delta;
                         break;
                     case "o":
-                        config.lookFromX = 0;
-                        config.lookFromY = 0;
-                        config.lookFromZ = 0;
+                        config.fromX = 0;
+                        config.fromY = 0;
+                        config.fromZ = 0;
                         break;
                     default:
                         return;
                 }
-                config.lookFromY = Math.max(0, config.lookFromY);
+                config.fromY = Math.max(0, config.fromY);
+                updateConfig();
+            }
+
+            window.addEventListener("resize", onResize);
+            function onResize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                img = ctx.createImageData(canvas.width, canvas.height);
                 updateConfig();
             }
 
