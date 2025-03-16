@@ -39,15 +39,20 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	go writer(conn, respCh)
 
 	world := makeWorld()
+	var ctx context.Context
+	var cancel func()
 	for {
 		_, p, err := conn.ReadMessage()
+		if cancel != nil {
+			cancel()
+		}
 		if err != nil {
 			return
 		}
+		ctx, cancel = context.WithCancel(context.Background())
 		config := readConfig(p)
-		fmt.Printf("canvas size: %d x %d\n", config.width, config.height)
 		camera := makeCamera(config)
-		go render(world, camera, respCh)
+		go render(ctx, respCh, world, camera)
 	}
 }
 
@@ -77,6 +82,7 @@ func readConfig(p []byte) renderConfig {
 	}
 	c.width = binary.LittleEndian.Uint32(p[0:4])
 	c.height = binary.LittleEndian.Uint32(p[4:8])
+	// fmt.Printf("canvas size: %d x %d\n", config.width, config.height)
 	return c
 }
 
@@ -93,17 +99,16 @@ func pixelsToBinary(pxs []gray.Pixel) []byte {
 	return buf
 }
 
-func render(world gray.Hitter[float64], camera *gray.Camera[float64], sendCh chan []byte) {
+func render(ctx context.Context, respCh chan []byte, world gray.Hitter[float64], camera *gray.Camera[float64]) {
 	start := time.Now()
 	pixelsCh := make(chan []gray.Pixel)
 
-	go camera.RenderStream(context.Background(), pixelsCh, world)
+	go camera.RenderStream(ctx, pixelsCh, world)
 
 	for pixels := range pixelsCh {
 		select {
 		case respCh <- pixelsToBinary(pixels):
 		default:
-			fmt.Println("canceled")
 			return
 		}
 	}
