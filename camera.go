@@ -144,6 +144,7 @@ type Pixel struct {
 	R, B, G uint8
 }
 
+// RenderStream closes the streamCh on finish or when the context is canceled.
 func (c *Camera[T]) RenderStream(ctx context.Context, streamCh chan<- []Pixel, world Hitter[T]) {
 	if ctx.Err() != nil {
 		return
@@ -211,9 +212,6 @@ func (c *Camera[T]) RenderStream(ctx context.Context, streamCh chan<- []Pixel, w
 	for i := n; i > 0; {
 		select {
 		case <-ctx.Done():
-			if len(buf) > 0 {
-				streamCh <- buf
-			}
 			goto cleanup
 		case pt, ok := <-bufCh:
 			if !ok {
@@ -232,6 +230,9 @@ func (c *Camera[T]) RenderStream(ctx context.Context, streamCh chan<- []Pixel, w
 	}
 cleanup:
 	timer.Stop()
+	if len(buf) > 0 {
+		streamCh <- buf
+	}
 	close(streamCh)
 }
 
