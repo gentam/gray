@@ -34,40 +34,26 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recvCh := make(chan []byte)
-	go receiver(conn, recvCh)
+	respCh := make(chan []byte)
+	go writer(conn, respCh)
 
-	width, height := getDimensions(recvCh)
-	fmt.Println("canvas size:", width, height)
-
-	sendCh := make(chan []byte)
-	go sender(conn, sendCh)
-
-	start := time.Now()
-	pointsCh := make(chan []gray.Pixel)
-	go rayTrace(pointsCh, int(width), int(height))
-	for points := range pointsCh {
-		sendCh <- pointsToBinary(points)
-	}
-	fmt.Println("rendered in", time.Since(start))
-}
-
-func receiver(conn *websocket.Conn, recvCh chan<- []byte) {
-	defer conn.Close()
+	world := makeWorld()
 	for {
 		_, p, err := conn.ReadMessage()
 		if err != nil {
-			close(recvCh)
 			return
 		}
-		recvCh <- p
+		config := readConfig(p)
+		fmt.Printf("canvas size: %d x %d\n", config.width, config.height)
+		camera := makeCamera(config)
+		go render(world, camera, respCh)
 	}
 }
 
-func sender(conn *websocket.Conn, sendCh <-chan []byte) {
+func writer(conn *websocket.Conn, respCh <-chan []byte) {
 	defer conn.Close()
 	for {
-		msg, ok := <-sendCh
+		msg, ok := <-respCh
 		if !ok {
 			return
 		}
@@ -77,18 +63,20 @@ func sender(conn *websocket.Conn, sendCh <-chan []byte) {
 	}
 }
 
-func getDimensions(recvCh <-chan []byte) (width, height uint32) {
-	dim, ok := <-recvCh
-	if !ok {
-		return
+type renderConfig struct {
+	height, width uint32
+}
+
+func readConfig(p []byte) renderConfig {
+	c := renderConfig{}
+	numFields := 2
+	if len(p) < numFields*4 {
+		fmt.Println("invalid config payload")
+		return c
 	}
-	if len(dim) < 8 {
-		fmt.Println("invalid dimension payload")
-		return
-	}
-	width = binary.LittleEndian.Uint32(dim[0:4])
-	height = binary.LittleEndian.Uint32(dim[4:8])
-	return
+	c.width = binary.LittleEndian.Uint32(p[0:4])
+	c.height = binary.LittleEndian.Uint32(p[4:8])
+	return c
 }
 
 func pointsToBinary(pts []gray.Pixel) []byte {
@@ -104,9 +92,25 @@ func pointsToBinary(pts []gray.Pixel) []byte {
 	return buf
 }
 
-func rayTrace(ch chan<- []gray.Pixel, width, height int) {
-	world := gray.NewHitterList[float64]()
+func render(world gray.Hitter[float64], camera *gray.Camera[float64], sendCh chan []byte) {
+	start := time.Now()
+	pointsCh := make(chan []gray.Pixel)
 
+	go camera.RenderStream(pointsCh, world)
+
+	for points := range pointsCh {
+		select {
+		case sendCh <- pointsToBinary(points):
+		default:
+			fmt.Println("canceled")
+			return
+		}
+	}
+	fmt.Println("rendered in", time.Since(start))
+}
+
+func makeWorld() gray.Hitter[float64] {
+	world := gray.NewHitterList[float64]()
 	groundMaterial := gray.NewLambertian(rgb(0.5, 0.5, 0.5))
 	world.Add(gray.NewSphere(point(0., -1000, 0), 1000, groundMaterial))
 
@@ -146,10 +150,13 @@ func rayTrace(ch chan<- []gray.Pixel, width, height int) {
 
 	material3 := gray.NewMetal(rgb(0.7, 0.6, 0.5), 0.0)
 	world.Add(gray.NewSphere(point(4., 1, 0), 1.0, material3))
+	return world
+}
 
+func makeCamera(config renderConfig) *gray.Camera[float64] {
 	camera := gray.NewCamera[float64]()
-	camera.ImageWidth = width
-	camera.ImageHeight = height
+	camera.ImageWidth = int(config.width)
+	camera.ImageHeight = int(config.height)
 	camera.SamplesPerPixel = 1
 	camera.MaxDepth = 50
 
@@ -160,8 +167,7 @@ func rayTrace(ch chan<- []gray.Pixel, width, height int) {
 
 	camera.DefocusAngle = 0.6
 	camera.FocusDistance = 10
-
-	camera.RenderStream(ch, world)
+	return camera
 }
 
 func point[T gray.Float](x, y, z T) gray.Point3[T] {
