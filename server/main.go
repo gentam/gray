@@ -80,28 +80,28 @@ func readConfig(p []byte) renderConfig {
 	return c
 }
 
-func pointsToBinary(pts []gray.Pixel) []byte {
-	buf := make([]byte, len(pts)*7)
-	for i, pt := range pts {
+func pixelsToBinary(pxs []gray.Pixel) []byte {
+	buf := make([]byte, len(pxs)*7)
+	for i, px := range pxs {
 		offset := i * 7
-		binary.LittleEndian.PutUint16(buf[offset:offset+2], uint16(pt.X))
-		binary.LittleEndian.PutUint16(buf[offset+2:offset+4], uint16(pt.Y))
-		buf[offset+4] = pt.R
-		buf[offset+5] = pt.G
-		buf[offset+6] = pt.B
+		binary.LittleEndian.PutUint16(buf[offset:offset+2], uint16(px.X))
+		binary.LittleEndian.PutUint16(buf[offset+2:offset+4], uint16(px.Y))
+		buf[offset+4] = px.R
+		buf[offset+5] = px.G
+		buf[offset+6] = px.B
 	}
 	return buf
 }
 
 func render(world gray.Hitter[float64], camera *gray.Camera[float64], sendCh chan []byte) {
 	start := time.Now()
-	pointsCh := make(chan []gray.Pixel)
+	pixelsCh := make(chan []gray.Pixel)
 
-	go camera.RenderStream(context.Background(), pointsCh, world)
+	go camera.RenderStream(context.Background(), pixelsCh, world)
 
-	for points := range pointsCh {
+	for pixels := range pixelsCh {
 		select {
-		case sendCh <- pointsToBinary(points):
+		case respCh <- pixelsToBinary(pixels):
 		default:
 			fmt.Println("canceled")
 			return
