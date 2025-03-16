@@ -24,8 +24,6 @@
             canvas.height = window.innerHeight;
 
             const img = ctx.createImageData(canvas.width, canvas.height);
-            let config = {};
-
             function dot(x, y, r, g, b) {
                 const i = (y * canvas.width + x) * 4;
                 img.data[i + 0] = r;
@@ -65,14 +63,43 @@
                 };
             }
 
+            let config = {
+                lookFromX: 13.0,
+                lookFromY: 2.0,
+            };
             function updateConfig() {
                 if (ws.readyState !== WebSocket.OPEN) return;
-                const numFields = 2;
+                const numFields = 4;
                 const buf = new ArrayBuffer(numFields * 4);
                 const view = new DataView(buf);
                 view.setUint32(0, canvas.width, true); // little-endian
                 view.setUint32(4, canvas.height, true);
+                view.setFloat32(8, config.lookFromX, true);
+                view.setFloat32(12, config.lookFromY, true);
+
                 ws.send(buf);
+            }
+
+            window.addEventListener("keydown", onKeyDown);
+            function onKeyDown(ev) {
+                const delta = 0.25;
+                switch (ev.key) {
+                    case "ArrowLeft":
+                        config.lookFromX -= delta;
+                        break;
+                    case "ArrowRight":
+                        config.lookFromX += delta;
+                        break;
+                    case "ArrowUp":
+                        config.lookFromY += delta;
+                        break;
+                    case "ArrowDown":
+                        config.lookFromY -= delta;
+                        break;
+                    default:
+                        return;
+                }
+                updateConfig();
             }
 
             listenWS();
