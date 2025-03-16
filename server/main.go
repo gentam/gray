@@ -71,22 +71,23 @@ func writer(conn *websocket.Conn, respCh <-chan []byte) {
 }
 
 type renderConfig struct {
-	height, width        uint32
-	lookFromX, lookFromY float32
+	height, width       uint32
+	fromX, fromY, fromZ float32
 }
 
 func readConfig(p []byte) renderConfig {
 	c := renderConfig{}
-	numFields := 4
+	numFields := 5
 	if len(p) < numFields*4 {
 		fmt.Println("invalid config payload")
 		return c
 	}
 	c.width = binary.LittleEndian.Uint32(p[0:4])
 	c.height = binary.LittleEndian.Uint32(p[4:8])
-	c.lookFromX = math.Float32frombits(binary.LittleEndian.Uint32(p[8:12]))
-	c.lookFromY = math.Float32frombits(binary.LittleEndian.Uint32(p[12:16]))
-	fmt.Printf("canvas: %dx%d, from: (%.2f,%.2f)\n", c.width, c.height, c.lookFromX, c.lookFromY)
+	c.fromX = math.Float32frombits(binary.LittleEndian.Uint32(p[8:12]))
+	c.fromY = math.Float32frombits(binary.LittleEndian.Uint32(p[12:16]))
+	c.fromZ = math.Float32frombits(binary.LittleEndian.Uint32(p[16:20]))
+	fmt.Printf("canvas: %dx%d, from: (%.2f,%.2f,%.2f)\n", c.width, c.height, c.fromX, c.fromY, c.fromZ)
 	return c
 }
 
@@ -171,11 +172,11 @@ func makeCamera(config renderConfig) *gray.Camera[float64] {
 	camera.MaxDepth = 50
 
 	camera.VFOV = 20
-	camera.LookFrom = point(float64(config.lookFromX), float64(config.lookFromY), 3.)
+	camera.LookFrom = point(float64(config.fromX), float64(config.fromY), float64(config.fromZ))
 	camera.LookAt = point(0., 0, 0)
 	camera.VUp = point(0., 1, 0)
 
-	camera.DefocusAngle = 0.6
+	camera.DefocusAngle = 0.1
 	camera.FocusDistance = 10
 	return camera
 }

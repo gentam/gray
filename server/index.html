@@ -66,16 +66,18 @@
             let config = {
                 lookFromX: 13.0,
                 lookFromY: 2.0,
+                lookFromZ: 3.0,
             };
             function updateConfig() {
                 if (ws.readyState !== WebSocket.OPEN) return;
-                const numFields = 4;
+                const numFields = 5;
                 const buf = new ArrayBuffer(numFields * 4);
                 const view = new DataView(buf);
                 view.setUint32(0, canvas.width, true); // little-endian
                 view.setUint32(4, canvas.height, true);
                 view.setFloat32(8, config.lookFromX, true);
                 view.setFloat32(12, config.lookFromY, true);
+                view.setFloat32(16, config.lookFromZ, true);
 
                 ws.send(buf);
             }
@@ -91,14 +93,22 @@
                         config.lookFromX += delta;
                         break;
                     case "ArrowUp":
-                        config.lookFromY += delta;
+                        if (ev.shiftKey) config.lookFromZ += delta;
+                        else config.lookFromY += delta;
                         break;
                     case "ArrowDown":
-                        config.lookFromY -= delta;
+                        if (ev.shiftKey) config.lookFromZ -= delta;
+                        else config.lookFromY -= delta;
+                        break;
+                    case "o":
+                        config.lookFromX = 0;
+                        config.lookFromY = 0;
+                        config.lookFromZ = 0;
                         break;
                     default:
                         return;
                 }
+                config.lookFromY = Math.max(0, config.lookFromY);
                 updateConfig();
             }
 
