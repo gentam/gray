@@ -1,4 +1,4 @@
-module gray
+module github.com/gentam/gray
 
 go 1.24
 

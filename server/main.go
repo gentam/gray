@@ -5,12 +5,12 @@ import (
 	_ "embed"
 	"encoding/binary"
 	"fmt"
-	"gray"
 	"math"
 	"math/rand/v2"
 	"net/http"
 	"time"
 
+	"github.com/gentam/gray"
 	"github.com/gorilla/websocket"
 )
 

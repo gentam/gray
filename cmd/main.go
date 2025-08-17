@@ -1,9 +1,10 @@
 package main
 
 import (
-	"gray"
 	"math/rand/v2"
 	"os"
+
+	"github.com/gentam/gray"
 )
 
 func main() {
